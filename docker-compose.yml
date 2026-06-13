@@ -1,0 +1,13 @@
+services:
+  ppk2tui:
+    build: .
+    # Pass the PPK2 USB serial device through to the container.
+    # Override PPK2_PORT if your device appears as ttyACM1, ttyACM2, etc:
+    #   PPK2_PORT=/dev/ttyACM1 docker compose run ppk2tui --port /dev/ttyACM1
+    devices:
+      - ${PPK2_PORT:-/dev/ttyACM0}:${PPK2_PORT:-/dev/ttyACM0}
+    environment:
+      - TERM=xterm-256color
+    # stdin_open + tty are required for the interactive TUI
+    stdin_open: true
+    tty: true
