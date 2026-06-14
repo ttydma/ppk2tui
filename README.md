@@ -4,6 +4,8 @@ A terminal UI for the [Nordic Semiconductor Power Profiler Kit 2 (PPK2)](https:/
 
 Connects via USB serial, reads 100 kHz current samples, and displays a live chart with rolling and session statistics.
 
+![ppk2tui screenshot](assets/ppk2tui_screenshot.png)
+
 ## Requirements
 
 - Docker and Docker Compose
@@ -22,7 +24,16 @@ If your device appears on a different port:
 PPK2_PORT=/dev/ttyACM1 docker compose run ppk2tui --port /dev/ttyACM1
 ```
 
-Alternatively you can build the project and run it outside of docker
+### Without Docker
+
+ppk2tui is a single Rust binary, so you can also build and run it natively with a [Rust toolchain](https://rustup.rs/):
+
+```sh
+cargo build --release
+./target/release/ppk2tui --port /dev/ttyACM0
+```
+
+On Linux you may need permission to access the serial device (e.g. add your user to the `dialout` group, or run with `sudo`).
 
 ## Options
 
