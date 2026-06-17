@@ -24,6 +24,19 @@ If your device appears on a different port:
 PPK2_PORT=/dev/ttyACM1 docker compose run ppk2tui --port /dev/ttyACM1
 ```
 
+### From the prebuilt image
+
+A docker image is published to GHCR:
+
+```sh
+docker run --rm -it \
+  --device /dev/ttyACM0 \
+  -e TERM=xterm-256color \
+  -v "$PWD:/data" \
+  ghcr.io/ttydma/ppk2tui:latest \
+  --port /dev/ttyACM0 --mode source --voltage 3300 --log /data/run.csv
+```
+
 ### Without Docker
 
 ppk2tui is a single Rust binary, so you can also build and run it natively with a [Rust toolchain](https://rustup.rs/):

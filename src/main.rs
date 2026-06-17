@@ -60,8 +60,7 @@ fn main() -> Result<()> {
         CliMode::Source => Mode::Source,
     };
 
-    let ring: Arc<Mutex<VecDeque<f32>>> =
-        Arc::new(Mutex::new(VecDeque::with_capacity(RING_CAP)));
+    let ring: Arc<Mutex<VecDeque<f32>>> = Arc::new(Mutex::new(VecDeque::with_capacity(RING_CAP)));
     let ring_clone = Arc::clone(&ring);
 
     let session: Arc<Mutex<SessionStats>> = Arc::new(Mutex::new(SessionStats::new()));
@@ -71,14 +70,15 @@ fn main() -> Result<()> {
 
     let port_path = args.port.clone();
     let vdd_mv = args.voltage;
-    let init_mode = mode.clone();
+    let init_mode = mode;
     let log_path = args.log.clone();
 
     let serial_thread = thread::spawn(move || -> Result<()> {
-        let mut dev = ppk2::device::open(&port_path)
-            .with_context(|| format!("cannot open {port_path}"))?;
+        let mut dev =
+            ppk2::device::open(&port_path).with_context(|| format!("cannot open {port_path}"))?;
 
-        dev.get_modifiers().context("failed to read device metadata")?;
+        dev.get_modifiers()
+            .context("failed to read device metadata")?;
 
         match init_mode {
             Mode::Ampere => dev.set_mode_ampere()?,

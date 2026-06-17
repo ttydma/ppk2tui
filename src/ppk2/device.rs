@@ -88,7 +88,11 @@ impl<R: Read, W: Write> PPK2Device<R, W> {
         let mut buf = [0u8; 4096];
         let n = match self.reader.read(&mut buf) {
             Ok(n) => n,
-            Err(e) if e.kind() == io::ErrorKind::TimedOut || e.kind() == io::ErrorKind::WouldBlock => 0,
+            Err(e)
+                if e.kind() == io::ErrorKind::TimedOut || e.kind() == io::ErrorKind::WouldBlock =>
+            {
+                0
+            }
             Err(e) => return Err(e.into()),
         };
 
@@ -119,7 +123,9 @@ pub fn open(path: &str) -> Result<PPK2Device<impl Read, impl Write>> {
         .with_context(|| format!("failed to open serial port {path}"))?;
 
     // serialport::SerialPort implements both Read and Write; clone for split R/W
-    let writer = port.try_clone().context("failed to clone serial port for writing")?;
+    let writer = port
+        .try_clone()
+        .context("failed to clone serial port for writing")?;
     Ok(PPK2Device::new(port, writer))
 }
 
@@ -134,9 +140,7 @@ mod tests {
 
     fn encode_sample(adc_raw: u16, range: u8, digital: u8) -> [u8; 4] {
         // adc field is bits 0-13 (raw value = adc/4), range bits 14-16, digital bits 17-24
-        let word: u32 = (adc_raw as u32 / 4)
-            | ((range as u32) << 14)
-            | ((digital as u32) << 17);
+        let word: u32 = (adc_raw as u32 / 4) | ((range as u32) << 14) | ((digital as u32) << 17);
         word.to_le_bytes()
     }
 

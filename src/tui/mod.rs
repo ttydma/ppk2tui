@@ -22,7 +22,7 @@ use events::{handle_key, KeyState, Mode};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnitScale {
-    Auto,  // picks nA/µA/mA automatically based on signal magnitude
+    Auto, // picks nA/µA/mA automatically based on signal magnitude
     Micro,
     Milli,
 }
@@ -30,7 +30,7 @@ pub enum UnitScale {
 impl UnitScale {
     pub fn label(self) -> &'static str {
         match self {
-            UnitScale::Auto  => "Auto",
+            UnitScale::Auto => "Auto",
             UnitScale::Micro => "µA",
             UnitScale::Milli => "mA",
         }
@@ -42,26 +42,35 @@ impl UnitScale {
 /// Running min/max/avg accumulator for the current DUT power-on session.
 /// Reset whenever DUT is toggled on.
 pub struct SessionStats {
-    pub sum:   f64,
-    pub min:   f32,
-    pub max:   f32,
+    pub sum: f64,
+    pub min: f32,
+    pub max: f32,
     pub count: u64,
 }
 
 impl SessionStats {
     pub fn new() -> Self {
-        Self { sum: 0.0, min: f32::INFINITY, max: f32::NEG_INFINITY, count: 0 }
+        Self {
+            sum: 0.0,
+            min: f32::INFINITY,
+            max: f32::NEG_INFINITY,
+            count: 0,
+        }
     }
 
     pub fn update(&mut self, ua: f32) {
-        self.sum   += ua as f64;
+        self.sum += ua as f64;
         self.count += 1;
-        self.min    = self.min.min(ua);
-        self.max    = self.max.max(ua);
+        self.min = self.min.min(ua);
+        self.max = self.max.max(ua);
     }
 
     pub fn avg(&self) -> f32 {
-        if self.count == 0 { 0.0 } else { (self.sum / self.count as f64) as f32 }
+        if self.count == 0 {
+            0.0
+        } else {
+            (self.sum / self.count as f64) as f32
+        }
     }
 
     pub fn reset(&mut self) {
@@ -72,31 +81,31 @@ impl SessionStats {
 // ── App state ─────────────────────────────────────────────────────────────────
 
 pub struct AppState {
-    pub port:            String,
-    pub mode:            Mode,
-    pub vdd_mv:          u16,
-    pub dut_on:          bool,
+    pub port: String,
+    pub mode: Mode,
+    pub vdd_mv: u16,
+    pub dut_on: bool,
     pub time_scale_secs: u16,
-    pub unit_scale:      UnitScale,
-    pub log_path:        Option<String>,
+    pub unit_scale: UnitScale,
+    pub log_path: Option<String>,
 }
 
 impl AppState {
     pub fn cycle_time_scale(&mut self) {
         self.time_scale_secs = match self.time_scale_secs {
-            1   => 5,
-            5   => 10,
-            10  => 30,
-            30  => 60,
-            60  => 300,
+            1 => 5,
+            5 => 10,
+            10 => 30,
+            30 => 60,
+            60 => 300,
             300 => 600,
-            _   => 1,
+            _ => 1,
         };
     }
 
     pub fn cycle_unit_scale(&mut self) {
         self.unit_scale = match self.unit_scale {
-            UnitScale::Auto  => UnitScale::Micro,
+            UnitScale::Auto => UnitScale::Micro,
             UnitScale::Micro => UnitScale::Milli,
             UnitScale::Milli => UnitScale::Auto,
         };
@@ -106,9 +115,9 @@ impl AppState {
 // ── TUI run loop ──────────────────────────────────────────────────────────────
 
 pub fn run(
-    ring:    Arc<Mutex<VecDeque<f32>>>,
+    ring: Arc<Mutex<VecDeque<f32>>>,
     session: Arc<Mutex<SessionStats>>,
-    tx:      std::sync::mpsc::Sender<Command>,
+    tx: std::sync::mpsc::Sender<Command>,
     mut app: AppState,
 ) -> Result<()> {
     enable_raw_mode()?;
@@ -119,7 +128,7 @@ pub fn run(
 
     let mut key_state = KeyState {
         dut_on: app.dut_on,
-        mode:   app.mode,
+        mode: app.mode,
         vdd_mv: app.vdd_mv,
     };
 
@@ -150,8 +159,12 @@ pub fn run(
                     }
                     app.dut_on = key_state.dut_on;
                     app.vdd_mv = key_state.vdd_mv;
-                    if cycle_time { app.cycle_time_scale(); }
-                    if cycle_unit { app.cycle_unit_scale(); }
+                    if cycle_time {
+                        app.cycle_time_scale();
+                    }
+                    if cycle_unit {
+                        app.cycle_unit_scale();
+                    }
                 }
             }
         }

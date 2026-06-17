@@ -96,7 +96,11 @@ pub fn adc_to_microamps(adc: u16, range: u8, vdd_mv: u16, mods: &Modifiers) -> f
     let vdd = vdd_mv as f32;
     let ua = ug * (result * (gs * result + gi) + s * (vdd / 1000.0) + i_coeff) * 1_000_000.0;
     // Guard against NaN/infinity from bad calibration data (e.g. R=0 → division by zero)
-    if ua.is_finite() { ua } else { 0.0 }
+    if ua.is_finite() {
+        ua
+    } else {
+        0.0
+    }
 }
 
 /// Exponential-moving-average spike filter with range-change hysteresis.
@@ -139,7 +143,11 @@ impl SpikeFilter {
             self.range_hold_count = 0;
         }
 
-        let alpha = if range >= 4 { SPIKE_ALPHA_HIGH_SENS } else { SPIKE_ALPHA_NORMAL };
+        let alpha = if range >= 4 {
+            SPIKE_ALPHA_HIGH_SENS
+        } else {
+            SPIKE_ALPHA_NORMAL
+        };
         self.ema = alpha * ua + (1.0 - alpha) * self.ema;
         self.ema
     }
@@ -220,8 +228,14 @@ mod tests {
         let v2 = f.apply(1000.0, 1);
         // Third same-range sample should accept the change
         let v3 = f.apply(1000.0, 1);
-        assert!(approx_eq(v1, v0, EPSILON), "range change should be suppressed on 1st sample");
-        assert!(approx_eq(v2, v0, EPSILON), "range change should be suppressed on 2nd sample");
+        assert!(
+            approx_eq(v1, v0, EPSILON),
+            "range change should be suppressed on 1st sample"
+        );
+        assert!(
+            approx_eq(v2, v0, EPSILON),
+            "range change should be suppressed on 2nd sample"
+        );
         assert!(v3 > v0, "range change should be accepted on 3rd sample");
     }
 
@@ -232,11 +246,17 @@ mod tests {
         let mut f4 = SpikeFilter::new();
         f4.apply(0.0, 4); // initialize
         let v4 = f4.apply(100.0, 4);
-        assert!(approx_eq(v4, 6.0, 0.01), "range 4 alpha=0.06: expected 6.0, got {v4}");
+        assert!(
+            approx_eq(v4, 6.0, 0.01),
+            "range 4 alpha=0.06: expected 6.0, got {v4}"
+        );
 
         let mut f0 = SpikeFilter::new();
         f0.apply(0.0, 0); // initialize
         let v0 = f0.apply(100.0, 0);
-        assert!(approx_eq(v0, 18.0, 0.01), "range 0 alpha=0.18: expected 18.0, got {v0}");
+        assert!(
+            approx_eq(v0, 18.0, 0.01),
+            "range 0 alpha=0.18: expected 18.0, got {v0}"
+        );
     }
 }

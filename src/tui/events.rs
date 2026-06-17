@@ -75,7 +75,11 @@ mod tests {
     }
 
     fn default_state() -> KeyState {
-        KeyState { dut_on: false, mode: Mode::Ampere, vdd_mv: 3300 }
+        KeyState {
+            dut_on: false,
+            mode: Mode::Ampere,
+            vdd_mv: 3300,
+        }
     }
 
     #[test]
@@ -112,7 +116,11 @@ mod tests {
     #[test]
     fn p_toggles_dut_power_on_to_off() {
         let (tx, rx) = mpsc::channel();
-        let mut state = KeyState { dut_on: true, mode: Mode::Ampere, vdd_mv: 3300 };
+        let mut state = KeyState {
+            dut_on: true,
+            mode: Mode::Ampere,
+            vdd_mv: 3300,
+        };
         handle_key(key(KeyCode::Char('p')), &mut state, &tx);
         assert!(!state.dut_on);
         assert_eq!(rx.recv().unwrap(), Command::SetDutPower(false));
@@ -123,14 +131,21 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         let mut state = default_state();
         handle_key(key(KeyCode::Up), &mut state, &tx);
-        assert!(rx.try_recv().is_err(), "no command should be sent in ampere mode");
+        assert!(
+            rx.try_recv().is_err(),
+            "no command should be sent in ampere mode"
+        );
         assert_eq!(state.vdd_mv, 3300);
     }
 
     #[test]
     fn up_in_source_mode_increases_voltage() {
         let (tx, rx) = mpsc::channel();
-        let mut state = KeyState { dut_on: false, mode: Mode::Source, vdd_mv: 3300 };
+        let mut state = KeyState {
+            dut_on: false,
+            mode: Mode::Source,
+            vdd_mv: 3300,
+        };
         handle_key(key(KeyCode::Up), &mut state, &tx);
         assert_eq!(state.vdd_mv, 3400);
         assert_eq!(rx.recv().unwrap(), Command::SetVoltage(3400));
@@ -139,7 +154,11 @@ mod tests {
     #[test]
     fn down_in_source_mode_decreases_voltage() {
         let (tx, rx) = mpsc::channel();
-        let mut state = KeyState { dut_on: false, mode: Mode::Source, vdd_mv: 3300 };
+        let mut state = KeyState {
+            dut_on: false,
+            mode: Mode::Source,
+            vdd_mv: 3300,
+        };
         handle_key(key(KeyCode::Down), &mut state, &tx);
         assert_eq!(state.vdd_mv, 3200);
         assert_eq!(rx.recv().unwrap(), Command::SetVoltage(3200));
@@ -148,7 +167,11 @@ mod tests {
     #[test]
     fn voltage_clamped_at_max() {
         let (tx, rx) = mpsc::channel();
-        let mut state = KeyState { dut_on: false, mode: Mode::Source, vdd_mv: 4950 };
+        let mut state = KeyState {
+            dut_on: false,
+            mode: Mode::Source,
+            vdd_mv: 4950,
+        };
         handle_key(key(KeyCode::Up), &mut state, &tx);
         handle_key(key(KeyCode::Up), &mut state, &tx);
         assert_eq!(state.vdd_mv, 5000);
@@ -159,7 +182,11 @@ mod tests {
     #[test]
     fn voltage_clamped_at_min() {
         let (tx, rx) = mpsc::channel();
-        let mut state = KeyState { dut_on: false, mode: Mode::Source, vdd_mv: 850 };
+        let mut state = KeyState {
+            dut_on: false,
+            mode: Mode::Source,
+            vdd_mv: 850,
+        };
         handle_key(key(KeyCode::Down), &mut state, &tx);
         handle_key(key(KeyCode::Down), &mut state, &tx);
         assert_eq!(state.vdd_mv, 800);
