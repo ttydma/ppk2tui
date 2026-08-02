@@ -1,6 +1,11 @@
 services:
   ppk2tui:
-    build: .
+    build:
+      context: .
+      args:
+        # Stamps the commit into the binary; shows as "unknown" if unset.
+        #   PPK2TUI_GIT_SHA=$(git rev-parse --short HEAD) docker compose build
+        PPK2TUI_GIT_SHA: ${PPK2TUI_GIT_SHA:-unknown}
     # Pass the PPK2 USB serial device through to the container.
     # Override PPK2_PORT if your device appears as ttyACM1, ttyACM2, etc:
     #   PPK2_PORT=/dev/ttyACM1 docker compose run ppk2tui --port /dev/ttyACM1

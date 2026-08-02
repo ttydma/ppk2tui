@@ -8,7 +8,10 @@ Connects via USB serial, reads 100 kHz current samples, and displays a live char
 
 ## Requirements
 
-- Docker and Docker Compose
+- Docker and Docker Compose. The [buildx](https://github.com/docker/buildx)
+  plugin (`docker-buildx-plugin` on Debian/Ubuntu) is recommended — without it
+  Docker falls back to the deprecated legacy builder, which still works but can
+  only produce a native-architecture image.
 - PPK2 connected via USB (default: `/dev/ttyACM0`)
 
 ## Build and run
@@ -16,6 +19,14 @@ Connects via USB serial, reads 100 kHz current samples, and displays a live char
 ```sh
 docker compose build
 docker compose run ppk2tui --port /dev/ttyACM0
+```
+
+The running build is shown in the top-right of the chart border and by
+`ppk2tui --version`. `.git` is excluded from the Docker build context, so stamp
+the commit in explicitly or it reports `unknown`:
+
+```sh
+PPK2TUI_GIT_SHA=$(git rev-parse --short HEAD) docker compose build
 ```
 
 If your device appears on a different port:

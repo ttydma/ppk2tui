@@ -1,3 +1,4 @@
+mod build_info;
 mod ppk2;
 mod tui;
 
@@ -32,7 +33,11 @@ enum CliMode {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "ppk2tui", about = "TUI for Nordic Semiconductor PPK2")]
+#[command(
+    name = "ppk2tui",
+    about = "TUI for Nordic Semiconductor PPK2",
+    version = build_info::VERSION
+)]
 struct Args {
     #[arg(short, long, help = "Serial port (e.g. /dev/ttyACM0)")]
     port: String,

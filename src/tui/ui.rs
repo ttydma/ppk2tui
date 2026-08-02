@@ -190,7 +190,16 @@ pub fn draw(frame: &mut Frame, state: &AppState, samples: &[f32], sess: (f32, f3
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(format!(" Current Draw — {} window ", window_label)),
+                .title(format!(" Current Draw — {} window ", window_label))
+                // Right-aligned in the top border so the running build is always
+                // identifiable without leaving the TUI.
+                .title(
+                    Line::from(Span::styled(
+                        format!(" {} ", crate::build_info::TUI_LABEL),
+                        Style::default().fg(Color::DarkGray),
+                    ))
+                    .right_aligned(),
+                ),
         )
         .x_axis(Axis::default().bounds([x_min, 0.0]).labels(vec![
             format!("-{}", window_label),
@@ -356,6 +365,64 @@ fn fmt_duration(secs: u16) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn build_label_renders_in_chart_header() {
+        use ratatui::{backend::TestBackend, Terminal};
+
+        let state = AppState {
+            port: "/dev/ttyACM0".to_string(),
+            mode: Mode::Ampere,
+            vdd_mv: 3300,
+            dut_on: false,
+            time_scale_secs: 5,
+            unit_scale: UnitScale::Auto,
+            log_path: None,
+        };
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+        terminal
+            .draw(|f| draw(f, &state, &[1.0, 2.0, 3.0], (0.0, 0.0, 0.0, 0)))
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+
+        assert!(
+            rendered.contains(crate::build_info::TUI_LABEL),
+            "build label {:?} missing from rendered TUI",
+            crate::build_info::TUI_LABEL
+        );
+    }
+
+    #[test]
+    fn narrow_terminal_does_not_panic() {
+        use ratatui::{backend::TestBackend, Terminal};
+
+        let state = AppState {
+            port: "/dev/ttyACM0".to_string(),
+            mode: Mode::Ampere,
+            vdd_mv: 3300,
+            dut_on: false,
+            time_scale_secs: 5,
+            unit_scale: UnitScale::Auto,
+            log_path: None,
+        };
+
+        // The chart title plus the build label is ~57 columns; narrower
+        // terminals must truncate rather than panic.
+        for width in [40u16, 60, 80] {
+            let mut terminal = Terminal::new(TestBackend::new(width, 20)).unwrap();
+            terminal
+                .draw(|f| draw(f, &state, &[1.0, 2.0, 3.0], (0.0, 0.0, 0.0, 0)))
+                .unwrap();
+        }
+    }
 
     #[test]
     fn auto_no_data_defaults_to_ua() {
