@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub const CMD_NO_OP: u8 = 0x00;
 pub const CMD_AVERAGE_START: u8 = 0x06;
 pub const CMD_AVERAGE_STOP: u8 = 0x07;
@@ -11,6 +12,11 @@ pub const CMD_RESET: u8 = 0x20;
 
 pub const MODE_AMPERE: u8 = 0x01;
 pub const MODE_SOURCE: u8 = 0x02;
+
+/// Parameter byte for CMD_DEVICE_RUNNING. The reference implementation sends
+/// TRIGGER_SET (0x01) to enable DUT power and NO_OP (0x00) to disable it.
+pub const DUT_POWER_ON: u8 = 0x01;
+pub const DUT_POWER_OFF: u8 = 0x00;
 
 /// Encode a source voltage (mV) into the 3-byte REGULATOR_SET payload.
 /// Valid range: 800–5000 mV.

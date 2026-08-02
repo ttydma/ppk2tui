@@ -66,7 +66,7 @@ impl<R: Read, W: Write> PPK2Device<R, W> {
     }
 
     pub fn set_dut_power(&mut self, on: bool) -> Result<()> {
-        let param = if on { CMD_AVERAGE_START } else { CMD_NO_OP };
+        let param = if on { DUT_POWER_ON } else { DUT_POWER_OFF };
         self.send(&[CMD_DEVICE_RUNNING, param])
     }
 
@@ -199,6 +199,20 @@ mod tests {
         let mut dev = make_device(Vec::new());
         assert!(dev.set_mode_source(799).is_err());
         assert!(dev.set_mode_source(5001).is_err());
+    }
+
+    #[test]
+    fn set_dut_power_writes_reference_bytes() {
+        // Reference (IRNAS ppk2-api toggle_DUT_power): ON is DEVICE_RUNNING_SET
+        // + TRIGGER_SET, OFF is DEVICE_RUNNING_SET + NO_OP. The "on" byte is
+        // 0x01, not AVERAGE_START (0x06).
+        let mut dev = make_device(Vec::new());
+        dev.set_dut_power(true).unwrap();
+        assert_eq!(&dev.writer[..], &[0x0c, 0x01]);
+
+        let mut dev = make_device(Vec::new());
+        dev.set_dut_power(false).unwrap();
+        assert_eq!(&dev.writer[..], &[0x0c, 0x00]);
     }
 
     #[test]

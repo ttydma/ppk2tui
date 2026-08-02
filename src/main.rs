@@ -90,6 +90,11 @@ fn main() -> Result<()> {
             Mode::Source => dev.set_mode_source(vdd_mv)?,
         }
 
+        // The PPK2 keeps whatever DUT power state it was left in, so a session
+        // that ended without a clean shutdown leaves the output enabled. The UI
+        // starts at "DUT: OFF", so force the device to match rather than assume.
+        dev.set_dut_power(false)?;
+
         dev.start_measuring()?;
 
         // Optional CSV log: one row per 100 ms bucket
