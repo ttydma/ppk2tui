@@ -31,12 +31,13 @@ pub fn encode_voltage(mv: u16) -> [u8; 3] {
 /// Layout (little-endian u32):
 ///   bits  0–13: 14-bit ADC (must multiply by 4 to get full-scale equivalent)
 ///   bits 14–16: range index 0–4
-///   bits 17–24: 8 digital channel bits
+///   bits 18–23: sample counter (unused here)
+///   bits 24–31: 8 digital channel bits
 pub fn parse_sample_raw(bytes: [u8; 4]) -> (u16, u8, u8) {
     let word = u32::from_le_bytes(bytes);
     let adc = ((word & 0x3FFF) as u16) * 4;
     let range = ((word >> 14) & 0x07) as u8;
-    let digital = ((word >> 17) & 0xFF) as u8;
+    let digital = ((word >> 24) & 0xFF) as u8;
     (adc, range, digital)
 }
 
@@ -94,7 +95,7 @@ mod tests {
     #[test]
     fn parse_sample_with_digital() {
         // digital = 0b10101010, range = 1, adc = 0
-        let word: u32 = (1u32 << 14) | (0b10101010u32 << 17);
+        let word: u32 = (1u32 << 14) | (0b10101010u32 << 24);
         let (adc, range, digital) = parse_sample_raw(word.to_le_bytes());
         assert_eq!(adc, 0);
         assert_eq!(range, 1);
@@ -104,7 +105,7 @@ mod tests {
     #[test]
     fn parse_sample_all_fields() {
         // adc raw = 200 → adc = 800, range = 2, digital = 0xFF
-        let word: u32 = 200u32 | (2u32 << 14) | (0xFFu32 << 17);
+        let word: u32 = 200u32 | (2u32 << 14) | (0xFFu32 << 24);
         let (adc, range, digital) = parse_sample_raw(word.to_le_bytes());
         assert_eq!(adc, 800);
         assert_eq!(range, 2);

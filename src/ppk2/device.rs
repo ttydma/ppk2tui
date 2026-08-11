@@ -139,25 +139,27 @@ mod tests {
     }
 
     fn encode_sample(adc_raw: u16, range: u8, digital: u8) -> [u8; 4] {
-        // adc field is bits 0-13 (raw value = adc/4), range bits 14-16, digital bits 17-24
-        let word: u32 = (adc_raw as u32 / 4) | ((range as u32) << 14) | ((digital as u32) << 17);
+        // adc field is bits 0-13 (raw value = adc/4), range bits 14-16, digital bits 24-31
+        let word: u32 = (adc_raw as u32 / 4) | ((range as u32) << 14) | ((digital as u32) << 24);
         word.to_le_bytes()
     }
 
     #[test]
     fn get_modifiers_parses_metadata() {
-        let metadata = b"R=1031.64,101.65,10.15,0.94,0.043\n\
-                         O=0.0,0.0,0.0,0.0,0.0\n\
-                         GS=1.0,1.0,1.0,1.0,1.0\n\
-                         GI=0.0,0.0,0.0,0.0,0.0\n\
-                         S=0.0,0.0,0.0,0.0,0.0\n\
-                         I=0.0,0.0,0.0,0.0,0.0\n\
-                         UG=1.0,1.0,1.0,1.0,1.0\n\
+        // Values deliberately differ from Modifiers::default()
+        let metadata = b"Calibrated: 1\n\
+                         R0: 1003.3\n\
+                         R1: 100.7\n\
+                         R4: 0.0415\n\
+                         GI0: 0.997\n\
+                         HW: 3\n\
                          END\n";
         let mut dev = make_device(metadata.to_vec());
         dev.get_modifiers().unwrap();
-        assert!((dev.modifiers.r[0] - 1031.64).abs() < 1e-2);
-        assert!((dev.modifiers.r[4] - 0.043).abs() < 1e-4);
+        assert!((dev.modifiers.r[0] - 1003.3).abs() < 1e-2);
+        assert!((dev.modifiers.r[1] - 100.7).abs() < 1e-2);
+        assert!((dev.modifiers.r[4] - 0.0415).abs() < 1e-4);
+        assert!((dev.modifiers.gi[0] - 0.997).abs() < 1e-3);
     }
 
     #[test]

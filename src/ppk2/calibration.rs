@@ -23,7 +23,7 @@ impl Default for Modifiers {
             r: [1031.64, 101.65, 10.15, 0.94, 0.043],
             o: [0.0; 5],
             gs: [1.0; 5],
-            gi: [0.0; 5],
+            gi: [1.0; 5],
             s: [0.0; 5],
             i: [0.0; 5],
             ug: [1.0; 5],
@@ -32,8 +32,8 @@ impl Default for Modifiers {
 }
 
 /// Parse the metadata text emitted by the device on GET_META_DATA.
-/// Lines are `key=value` pairs; values may be comma-separated per-range lists.
-/// Parsing stops at a line containing "END".
+///
+/// The device emits one `KEY: VALUE` pair per line
 pub fn parse_modifiers(text: &str) -> Result<Modifiers> {
     let mut m = Modifiers::default();
 
@@ -42,46 +42,40 @@ pub fn parse_modifiers(text: &str) -> Result<Modifiers> {
         if line.contains("END") {
             break;
         }
-        if let Some((key, val)) = line.split_once('=') {
-            let key = key.trim();
-            let val = val.trim();
-            // Only attempt float parsing for known coefficient keys
-            match key {
-                "R" | "O" | "GS" | "GI" | "S" | "I" | "UG" => {
-                    let arr = parse_float_array(val)?;
-                    match key {
-                        "R" => fill_array(&mut m.r, &arr),
-                        "O" => fill_array(&mut m.o, &arr),
-                        "GS" => fill_array(&mut m.gs, &arr),
-                        "GI" => fill_array(&mut m.gi, &arr),
-                        "S" => fill_array(&mut m.s, &arr),
-                        "I" => fill_array(&mut m.i, &arr),
-                        "UG" => fill_array(&mut m.ug, &arr),
-                        _ => unreachable!(),
-                    }
-                }
-                _ => {}
-            }
+        let Some((key, val)) = line.split_once(':') else {
+            continue;
+        };
+        let key = key.trim();
+        let Ok(value) = val.trim().parse::<f32>() else {
+            continue;
+        };
+
+        // Split the trailing range index off the coefficient name.
+        let Some(idx) = key
+            .chars()
+            .last()
+            .and_then(|c| c.to_digit(10))
+            .filter(|d| *d < 5)
+        else {
+            continue;
+        };
+        let name = &key[..key.len() - 1];
+        let idx = idx as usize;
+
+        match name {
+            "R" if value != 0.0 => m.r[idx] = value,
+            "R" => {}
+            "O" => m.o[idx] = value,
+            "GS" => m.gs[idx] = value,
+            "GI" => m.gi[idx] = value,
+            "S" => m.s[idx] = value,
+            "I" => m.i[idx] = value,
+            "UG" => m.ug[idx] = value,
+            _ => {}
         }
     }
 
     Ok(m)
-}
-
-fn parse_float_array(s: &str) -> Result<Vec<f32>> {
-    s.split(',')
-        .map(|v| {
-            v.trim()
-                .parse::<f32>()
-                .map_err(|e| anyhow::anyhow!("parse float '{}': {}", v.trim(), e))
-        })
-        .collect()
-}
-
-fn fill_array(dest: &mut [f32; 5], src: &[f32]) {
-    for (d, s) in dest.iter_mut().zip(src.iter()) {
-        *d = *s;
-    }
 }
 
 /// Convert a raw ADC value to microamps using calibration coefficients.
@@ -201,35 +195,73 @@ mod tests {
         (a - b).abs() < eps
     }
 
+    const DEVICE_METADATA: &str = "Calibrated: 1\n\
+                                   R0: 1003.3\n\
+                                   R1: 100.7\n\
+                                   R2: 10.15\n\
+                                   R3: 0.94\n\
+                                   R4: 0.043\n\
+                                   GS0: 0.0\n\
+                                   GS1: 0.001\n\
+                                   GI0: 1.0\n\
+                                   GI1: 0.998\n\
+                                   O0: 5.5\n\
+                                   O1: 6.5\n\
+                                   S0: 0.0001\n\
+                                   I0: 2.0e-8\n\
+                                   UG0: 1.0\n\
+                                   HW: 3\n\
+                                   IA: 5\n\
+                                   END\n";
+
     #[test]
-    fn parse_modifiers_basic() {
-        let text = "R=100.0,200.0,300.0,400.0,500.0\n\
-                    O=1.0,2.0,3.0,4.0,5.0\n\
-                    GS=0.1,0.2,0.3,0.4,0.5\n\
-                    GI=0.01,0.02,0.03,0.04,0.05\n\
-                    S=0.0,0.0,0.0,0.0,0.0\n\
-                    I=0.0,0.0,0.0,0.0,0.0\n\
-                    UG=1.0,1.0,1.0,1.0,1.0\n\
-                    END\n";
-        let m = parse_modifiers(text).unwrap();
-        assert!(approx_eq(m.r[0], 100.0, EPSILON));
-        assert!(approx_eq(m.r[4], 500.0, EPSILON));
-        assert!(approx_eq(m.o[2], 3.0, EPSILON));
-        assert!(approx_eq(m.gs[1], 0.2, EPSILON));
+    fn parse_modifiers_reads_indexed_colon_format() {
+        let m = parse_modifiers(DEVICE_METADATA).unwrap();
+        assert!(approx_eq(m.r[0], 1003.3, EPSILON), "got {}", m.r[0]);
+        assert!(approx_eq(m.r[1], 100.7, EPSILON), "got {}", m.r[1]);
+        assert!(approx_eq(m.r[4], 0.043, EPSILON), "got {}", m.r[4]);
+        assert!(approx_eq(m.gi[1], 0.998, EPSILON), "got {}", m.gi[1]);
+        assert!(approx_eq(m.o[1], 6.5, EPSILON), "got {}", m.o[1]);
+        assert!(approx_eq(m.s[0], 0.0001, 1e-6), "got {}", m.s[0]);
+    }
+
+    #[test]
+    fn parse_modifiers_ignores_scalar_and_unknown_keys() {
+        let m = parse_modifiers(DEVICE_METADATA).unwrap();
+        assert!(approx_eq(m.ug[3], 1.0, EPSILON));
+        assert!(approx_eq(m.gi[4], 1.0, EPSILON));
     }
 
     #[test]
     fn parse_modifiers_stops_at_end() {
-        let text = "R=1.0,2.0,3.0,4.0,5.0\nEND\nR=9.0,9.0,9.0,9.0,9.0\n";
+        let text = "R0: 1.0\nEND\nR0: 9.0\n";
         let m = parse_modifiers(text).unwrap();
         assert!(approx_eq(m.r[0], 1.0, EPSILON));
     }
 
     #[test]
-    fn parse_modifiers_ignores_unknown_keys() {
-        let text = "HW=1\nCALIBRATED=true\nR=1.0,2.0,3.0,4.0,5.0\nEND\n";
-        let m = parse_modifiers(text).unwrap();
-        assert!(approx_eq(m.r[0], 1.0, EPSILON));
+    fn parse_modifiers_rejects_zero_shunt() {
+        let m = parse_modifiers("R2: 0\nEND\n").unwrap();
+        assert!(approx_eq(m.r[2], 10.15, EPSILON), "got {}", m.r[2]);
+    }
+
+    #[test]
+    fn parse_modifiers_skips_malformed_lines_without_losing_others() {
+        let m = parse_modifiers("R0: not_a_number\nR1: 55.5\nEND\n").unwrap();
+        assert!(approx_eq(m.r[0], 1031.64, EPSILON), "default retained");
+        assert!(approx_eq(m.r[1], 55.5, EPSILON), "later key still parsed");
+    }
+
+    #[test]
+    fn default_gain_offset_is_identity_not_squared() {
+        // gi must default to 1.0: `result * (gs * result + gi)` with gi = 0
+        // collapses to result², which reads as ~0 for any real current.
+        let mods = Modifiers::default();
+        assert!(approx_eq(mods.gi[0], 1.0, EPSILON));
+
+        // A mid-range ADC value should land in a plausible µA range, not ~0.
+        let ua = adc_to_microamps(30_000, 0, 3300, &mods);
+        assert!(ua > 100.0, "expected a real current, got {ua}");
     }
 
     #[test]
