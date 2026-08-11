@@ -65,8 +65,23 @@ On Linux you may need permission to access the serial device (e.g. add your user
   -p, --port <PORT>       Serial port (required)
   -m, --mode <MODE>       ampere or source [default: ampere]
   -v, --voltage <MV>      Source voltage in mV, 800–5000 [default: 3300]
-  -l, --log <FILE>        Log avg/min/max to CSV (one row per 100 ms)
+  -l, --log <FILE>        Log avg/min/max to CSV (one row per bucket)
+      --log-interval-us <US>  CSV bucket size in µs [default: 100000]
 ```
+
+### High-resolution logging
+
+```sh
+# 10 µs = one row per sample (100 kSps): full resolution, ~4 MB/s
+ppk2tui --port /dev/ttyACM0 --log burst.csv --log-interval-us 10
+
+# 100 µs = 10 samples per row: keeps sub-millisecond shape, 10x smaller
+ppk2tui --port /dev/ttyACM0 --log burst.csv --log-interval-us 100
+```
+
+Columns are `elapsed_us,avg_ua,min_ua,max_ua,n_samples`. Timestamps are derived
+from the sample index at 100 kSps rather than the wall clock, so rows land on
+exact sample boundaries. Charge over any span is `avg_ua × n_samples × 10 µs`.
 
 ## Key bindings
 

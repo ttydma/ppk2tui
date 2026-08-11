@@ -1,17 +1,19 @@
 mod build_info;
+mod logging;
 mod ppk2;
 mod tui;
 
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::BufWriter;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 
+use logging::{samples_per_bucket, BucketLogger};
 use tui::events::Mode;
 use tui::{AppState, SessionStats, UnitScale};
 
@@ -53,8 +55,16 @@ struct Args {
     )]
     voltage: u16,
 
-    #[arg(short, long, help = "Log samples to CSV file (avg/min/max per 100 ms)")]
+    #[arg(short, long, help = "Log samples to CSV file (avg/min/max per bucket)")]
     log: Option<String>,
+
+    #[arg(
+        long,
+        default_value_t = 100_000,
+        value_parser = clap::value_parser!(u64).range(1..=60_000_000),
+        help = "CSV bucket size in µs; 10 logs every sample at 100 kSps"
+    )]
+    log_interval_us: u64,
 }
 
 fn main() -> Result<()> {
@@ -77,6 +87,7 @@ fn main() -> Result<()> {
     let vdd_mv = args.voltage;
     let init_mode = mode;
     let log_path = args.log.clone();
+    let log_interval_us = args.log_interval_us;
 
     let serial_thread = thread::spawn(move || -> Result<()> {
         let mut dev =
@@ -97,23 +108,14 @@ fn main() -> Result<()> {
 
         dev.start_measuring()?;
 
-        // Optional CSV log: one row per 100 ms bucket
-        let mut log: Option<BufWriter<File>> = if let Some(ref path) = log_path {
-            let mut f = BufWriter::new(
+        let mut log: Option<BucketLogger<BufWriter<File>>> = if let Some(ref path) = log_path {
+            let f = BufWriter::new(
                 File::create(path).with_context(|| format!("cannot create log {path}"))?,
             );
-            writeln!(f, "elapsed_ms,avg_ua,min_ua,max_ua,n_samples")?;
-            Some(f)
+            Some(BucketLogger::new(f, samples_per_bucket(log_interval_us))?)
         } else {
             None
         };
-
-        let start = Instant::now();
-        let mut log_bucket_start = start;
-        let mut log_sum = 0f64;
-        let mut log_min = f32::INFINITY;
-        let mut log_max = f32::NEG_INFINITY;
-        let mut log_n = 0u32;
 
         let mut dut_on = false;
 
@@ -124,7 +126,7 @@ fn main() -> Result<()> {
                         dev.stop_measuring().ok();
                         dev.reset().ok();
                         if let Some(ref mut w) = log {
-                            w.flush().ok();
+                            w.finish().ok();
                         }
                         return Ok(());
                     }
@@ -162,20 +164,7 @@ fn main() -> Result<()> {
 
                 if let Some(ref mut w) = log {
                     for &s in &samples {
-                        log_sum += s as f64;
-                        log_min = log_min.min(s);
-                        log_max = log_max.max(s);
-                        log_n += 1;
-                    }
-                    if log_bucket_start.elapsed() >= Duration::from_millis(100) && log_n > 0 {
-                        let elapsed_ms = start.elapsed().as_millis();
-                        let avg = log_sum / log_n as f64;
-                        writeln!(w, "{elapsed_ms},{avg:.2},{log_min:.2},{log_max:.2},{log_n}")?;
-                        log_sum = 0.0;
-                        log_min = f32::INFINITY;
-                        log_max = f32::NEG_INFINITY;
-                        log_n = 0;
-                        log_bucket_start = Instant::now();
+                        w.push(s)?;
                     }
                 }
             } else {
