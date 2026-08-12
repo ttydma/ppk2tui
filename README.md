@@ -37,7 +37,7 @@ PPK2_PORT=/dev/ttyACM1 docker compose run ppk2tui --port /dev/ttyACM1
 
 ### From the prebuilt image
 
-A docker image is published to GHCR:
+A multi-arch (amd64/arm64) image is published to GHCR:
 
 ```sh
 docker run --rm -it \
